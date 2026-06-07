@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "anesthesia-schedule",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-c", "import http.server,os; os.chdir('/Users/sinj/Desktop/Scheduling software'); http.server.HTTPServer(('',3456),http.server.SimpleHTTPRequestHandler).serve_forever()"],
+      "port": 3456
+    }
+  ]
+}

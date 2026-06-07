@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Anesthesia Dept. Scheduler</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#1e3a5f;--navy2:#2d5282;
+  --radius:10px;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#edf2f7;color:#1a202c;min-height:100vh}
+
+/* ── SETUP ── */
+#setup-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:36px 16px 60px}
+.setup-card{background:#fff;border-radius:16px;padding:36px;max-width:760px;width:100%;box-shadow:0 4px 24px rgba(0,0,0,.09)}
+.setup-card h1{font-size:1.5rem;color:var(--navy);margin-bottom:4px}
+.tagline{font-size:.875rem;color:#718096;margin-bottom:32px}
+.form-section{margin-bottom:28px}
+.form-section-title{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#4a5568;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #e2e8f0}
+.provider-row{display:grid;grid-template-columns:28px 1fr 160px;align-items:center;gap:10px;margin-bottom:10px}
+.p-swatch{width:28px;height:28px;border-radius:6px;flex-shrink:0}
+.provider-row input[type=text]{padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:.9rem;color:#2d3748;outline:none;width:100%}
+.provider-row input[type=text]:focus{border-color:var(--navy)}
+.phase-select{padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:.8rem;color:#2d3748;background:#fff;outline:none;cursor:pointer;width:100%}
+.pain-radio-group{display:flex;gap:8px;flex-wrap:wrap}
+.pain-btn{display:flex;align-items:center;gap:7px;padding:7px 13px;border:2px solid #e2e8f0;border-radius:8px;cursor:pointer;font-size:.85rem;background:#fff;transition:all .15s;user-select:none}
+.pain-btn:hover{border-color:#b794f4;background:#faf5ff}
+.pain-btn.active{border-color:#805ad5;background:#faf5ff;color:#44337a;font-weight:600}
+.date-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.date-row label{font-size:.875rem;color:#4a5568;white-space:nowrap}
+.date-row input[type=date]{padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:.875rem;color:#2d3748;outline:none}
+.hint{font-size:.75rem;color:#718096;margin-top:6px;line-height:1.5}
+.btn-primary{padding:12px 28px;background:var(--navy);color:#fff;border:none;border-radius:10px;font-size:.95rem;font-weight:600;cursor:pointer;transition:background .15s;margin-top:8px}
+.btn-primary:hover{background:var(--navy2)}
+
+/* ── APP HEADER ── */
+#app-screen{display:none;flex-direction:column;min-height:100vh}
+.app-header{background:var(--navy);color:#fff;padding:13px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;flex-shrink:0}
+.app-header h1{font-size:1.05rem;font-weight:700}
+.hbtns{display:flex;gap:8px;flex-wrap:wrap}
+.hbtn{padding:6px 13px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);color:#fff;border-radius:7px;font-size:.8rem;cursor:pointer;transition:background .15s;white-space:nowrap}
+.hbtn:hover{background:rgba(255,255,255,.26)}
+.hbtn.danger{background:rgba(239,68,68,.2);border-color:rgba(239,68,68,.4)}
+.hbtn.danger:hover{background:rgba(239,68,68,.35)}
+
+/* ── CALENDAR NAV ── */
+.cal-nav{background:#fff;border-bottom:1px solid #e2e8f0;padding:12px 24px;display:flex;align-items:center;gap:14px;flex-shrink:0;flex-wrap:wrap}
+.nav-group{display:flex;align-items:center;gap:8px}
+.nbtn{padding:6px 13px;background:#f7fafc;border:1px solid #e2e8f0;border-radius:7px;font-size:.83rem;cursor:pointer;transition:all .15s;white-space:nowrap}
+.nbtn:hover{background:#e2e8f0}
+.month-title{font-size:1.1rem;font-weight:700;color:var(--navy);min-width:160px;text-align:center}
+
+/* ── LEGEND ── */
+.legend-bar{background:#f7fafc;border-bottom:1px solid #e2e8f0;padding:8px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;flex-shrink:0}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:.76rem;color:#4a5568}
+.leg-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.leg-divider{width:1px;height:16px;background:#e2e8f0;margin:0 4px}
+
+/* ── CALENDAR GRID ── */
+.cal-area{padding:16px 24px;flex:1;overflow:auto}
+.cal-grid-wrap{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.07)}
+.cal-dow-row{display:grid;grid-template-columns:repeat(7,1fr);background:#2d3748}
+.cal-dow{padding:8px 10px;text-align:center;font-size:.72rem;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.06em}
+.cal-dow.weekend{background:#3a3a4a}
+.cal-weeks{}
+.cal-week{display:grid;grid-template-columns:repeat(7,1fr);border-top:1px solid #e2e8f0}
+.cal-cell{min-height:115px;padding:6px 5px 5px;border-right:1px solid #f0f4f8;cursor:pointer;transition:background .12s;position:relative;vertical-align:top}
+.cal-cell:last-child{border-right:none}
+.cal-cell:hover{background:#f7fafc}
+.cal-cell.other-month{background:#fafafa;opacity:.55}
+.cal-cell.today .cal-date{background:var(--navy);color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-weight:700}
+.cal-cell.weekend-cell{background:#fafbfc}
+.cal-date{font-size:.8rem;font-weight:600;color:#4a5568;margin-bottom:4px;line-height:1;width:22px;height:22px;display:flex;align-items:center;justify-content:center}
+.cal-row{display:flex;align-items:center;gap:3px;margin-bottom:2px;padding:1px 2px;border-radius:4px;font-size:.68rem;line-height:1.2}
+.cal-row .pdot{width:7px;height:7px;border-radius:2px;flex-shrink:0}
+.cal-row .pname{font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:46px}
+.cal-row .albl{font-size:.62rem;font-weight:700;white-space:nowrap;padding:0 3px;border-radius:3px}
+
+/* assignment type row backgrounds */
+.cal-row.t-or    {background:rgba(104,211,145,.15)}
+.cal-row.t-call  {background:rgba(252,129,129,.18)}
+.cal-row.t-recovery{background:rgba(99,179,237,.12)}
+.cal-row.t-pain  {background:rgba(183,148,244,.18)}
+.cal-row.t-dual  {background:rgba(246,173,85,.2)}
+.cal-row.t-vacation,.cal-row.t-vacation-call{background:repeating-linear-gradient(45deg,rgba(0,0,0,.04) 0,rgba(0,0,0,.04) 2px,transparent 2px,transparent 5px)}
+.cal-row.t-off   {opacity:.45}
+.cal-row.t-available{background:rgba(255,255,0,.2)}
+
+.wknd-call{display:flex;align-items:center;gap:4px;padding:2px 4px;border-radius:4px;font-size:.68rem;font-weight:600;margin-bottom:2px;border-left:3px solid}
+.wknd-off{font-size:.63rem;color:#a0aec0;padding:1px 3px}
+
+/* ── DAY DETAIL MODAL ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.open{display:flex}
+.modal{background:#fff;border-radius:14px;max-width:560px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal-header{padding:20px 24px 14px;border-bottom:1px solid #e2e8f0;display:flex;align-items:flex-start;justify-content:space-between;gap:8px;position:sticky;top:0;background:#fff;border-radius:14px 14px 0 0}
+.modal-header h2{font-size:1rem;font-weight:700;color:var(--navy)}
+.modal-close{background:none;border:none;font-size:1.4rem;cursor:pointer;color:#718096;line-height:1;padding:0 4px}
+.modal-body{padding:16px 24px 24px}
+.detail-row{display:flex;align-items:flex-start;gap:10px;padding:9px 0;border-bottom:1px solid #f0f4f8}
+.detail-row:last-child{border-bottom:none}
+.detail-swatch{width:12px;height:12px;border-radius:3px;flex-shrink:0;margin-top:2px}
+.detail-name{font-weight:600;font-size:.88rem;min-width:120px}
+.detail-assign{font-size:.85rem;color:#4a5568}
+.detail-sub{font-size:.75rem;color:#718096;margin-top:2px}
+.modal-section-title{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#4a5568;margin:14px 0 6px;padding-top:14px;border-top:1px solid #e2e8f0}
+.modal-section-title:first-child{margin-top:0;padding-top:0;border-top:none}
+
+/* ── VACATION MANAGER MODAL ── */
+.vacation-list{margin-bottom:16px}
+.vacation-item{display:flex;align-items:center;gap:8px;padding:7px 10px;background:#f7fafc;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:6px;font-size:.83rem}
+.vacation-item .vdot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+.vacation-item .vinfo{flex:1}
+.vacation-item .vtype{font-size:.65rem;font-weight:700;padding:1px 5px;border-radius:3px;white-space:nowrap}
+.vtype-call{background:#fee2e2;color:#742a2a}
+.vtype-norm{background:#e0f2fe;color:#0c4a6e}
+.btn-remove{padding:3px 9px;background:none;border:1px solid #fed7d7;border-radius:5px;color:#e53e3e;font-size:.73rem;cursor:pointer;transition:all .15s}
+.btn-remove:hover{background:#fed7d7}
+.add-vacation-form{display:flex;flex-direction:column;gap:10px;padding:14px;background:#f7fafc;border-radius:10px;border:1px solid #e2e8f0}
+.add-vacation-form label{font-size:.8rem;color:#4a5568;font-weight:600}
+
+/* ── ROOM BALANCE ANALYSIS ── */
+.room-scope{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.room-scope select{padding:6px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:.83rem;background:#fff;outline:none;cursor:pointer}
+.rb-row{display:grid;grid-template-columns:140px repeat(4,1fr) 70px;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid #f0f4f8}
+.rb-row.head{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#718096;border-bottom:2px solid #e2e8f0}
+.rb-prov{display:flex;align-items:center;gap:7px;font-size:.85rem;font-weight:600;color:#2d3748}
+.rb-cell{display:flex;flex-direction:column;gap:3px}
+.rb-bar-track{background:#edf2f7;border-radius:4px;height:9px;overflow:hidden}
+.rb-bar-fill{height:100%;border-radius:4px;transition:width .2s}
+.rb-num{font-size:.74rem;color:#4a5568;font-weight:600;display:flex;justify-content:space-between}
+.rb-total{font-size:.85rem;font-weight:700;color:var(--navy);text-align:right}
+.rb-summary{margin-top:16px;padding:12px 14px;background:#f7fafc;border-radius:9px;font-size:.8rem;color:#4a5568;line-height:1.6}
+.form-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.form-field{display:flex;flex-direction:column;gap:4px;flex:1;min-width:120px}
+.form-field select,.form-field input{padding:7px 10px;border:1px solid #e2e8f0;border-radius:7px;font-size:.85rem;color:#2d3748;outline:none;background:#fff}
+.form-field select:focus,.form-field input:focus{border-color:var(--navy)}
+.warn-box{padding:10px 12px;background:#fffbeb;border:1px solid #f6ad55;border-radius:8px;font-size:.8rem;color:#744210;margin:10px 0;line-height:1.5}
+.err-box{padding:10px 12px;background:#fff5f5;border:1px solid #fc8181;border-radius:8px;font-size:.8rem;color:#742a2a;margin:10px 0;line-height:1.5}
+.ok-box{padding:10px 12px;background:#f0fff4;border:1px solid #68d391;border-radius:8px;font-size:.8rem;color:#22543d;margin:10px 0}
+
+@media(max-width:640px){
+  .cal-area{padding:8px}
+  .cal-cell{min-height:80px;padding:4px 3px 3px}
+  .pname{display:none}
+}
+@media print{
+  .app-header,.cal-nav,.legend-bar{display:none!important}
+  #app-screen{display:flex!important}
+  .cal-cell{min-height:90px}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ SETUP SCREEN ═══════════════════ -->
+<div id="setup-screen">
+  <div class="setup-card">
+    <h1>Anesthesia Department Scheduler</h1>
+    <p class="tagline">6-provider rotation · OR rooms · call cycles · pain clinic · vacation management</p>
+
+    <div class="form-section">
+      <div class="form-section-title">Providers &amp; Starting Rotation Phase</div>
+      <div id="provider-rows"></div>
+      <p class="hint"><b>Starting phase</b> sets where each provider is in their 6-week cycle when the schedule begins. The default evenly spaces all six so exactly one is on call and one is in recovery each week.</p>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">Pain Management Clinic Provider (Permanent)</div>
+      <p class="hint" style="margin-bottom:10px">One fixed provider covers clinic every <b>Tuesday 8AM–5PM</b> regardless of rotation phase. During their call week: dual duty (clinic + evening call). On all other weekdays they are a regular OR provider.</p>
+      <div class="pain-radio-group" id="pain-radio-group"></div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">Schedule Start Date</div>
+      <div class="date-row">
+        <label>First Friday (call start):</label>
+        <input type="date" id="start-date-input">
+      </div>
+      <p class="hint">Call weeks begin on Friday. The schedule always starts on a Friday. Non-Friday dates snap to the nearest upcoming Friday.</p>
+    </div>
+
+    <button class="btn-primary" onclick="launch()">Generate Schedule →</button>
+  </div>
+</div>
+
+<!-- ═══════════════════ APP SCREEN ═══════════════════ -->
+<div id="app-screen">
+  <div class="app-header">
+    <h1>🏥 Anesthesia Scheduler</h1>
+    <div class="hbtns">
+      <button class="hbtn" onclick="openVacationModal()">🏖 Vacations</button>
+      <button class="hbtn" onclick="openRoomModal()">📊 Room Balance</button>
+      <button class="hbtn" onclick="goSetup()">⚙ Edit Providers</button>
+      <button class="hbtn" onclick="window.print()">🖨 Print</button>
+    </div>
+  </div>
+
+  <div class="cal-nav">
+    <div class="nav-group">
+      <button class="nbtn" onclick="shiftMonth(-1)">← Prev</button>
+      <div class="month-title" id="month-title"></div>
+      <button class="nbtn" onclick="shiftMonth(1)">Next →</button>
+    </div>
+    <button class="nbtn" onclick="jumpToday()">Today</button>
+  </div>
+
+  <div class="legend-bar" id="legend-bar"></div>
+
+  <div class="cal-area">
+    <div class="cal-grid-wrap">
+      <div class="cal-dow-row">
+        <div class="cal-dow weekend">Sun</div>
+        <div class="cal-dow">Mon</div>
+        <div class="cal-dow">Tue</div>
+        <div class="cal-dow">Wed</div>
+        <div class="cal-dow">Thu</div>
+        <div class="cal-dow">Fri</div>
+        <div class="cal-dow weekend">Sat</div>
+      </div>
+      <div class="cal-weeks" id="cal-weeks"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ DAY DETAIL MODAL ═══════════════════ -->
+<div class="modal-overlay" id="day-modal" onclick="if(event.target===this)closeModal('day-modal')">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="day-modal-title">Day Detail</h2>
+      <button class="modal-close" onclick="closeModal('day-modal')">×</button>
+    </div>
+    <div class="modal-body" id="day-modal-body"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════ VACATION MODAL ═══════════════════ -->
+<div class="modal-overlay" id="vacation-modal" onclick="if(event.target===this)closeModal('vacation-modal')">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Vacation Management</h2>
+      <button class="modal-close" onclick="closeModal('vacation-modal')">×</button>
+    </div>
+    <div class="modal-body" id="vacation-modal-body"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════ ROOM BALANCE MODAL ═══════════════════ -->
+<div class="modal-overlay" id="room-modal" onclick="if(event.target===this)closeModal('room-modal')">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-header">
+      <h2>OR Room Balance Analysis</h2>
+      <button class="modal-close" onclick="closeModal('room-modal')">×</button>
+    </div>
+    <div class="modal-body" id="room-modal-body"></div>
+  </div>
+</div>
+
+<script>
+// ─── CONSTANTS ───────────────────────────────────────────────────────────────
+const P_COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899'];
+const P_LIGHT  = ['#dbeafe','#d1fae5','#fef3c7','#fee2e2','#ede9fe','#fce7f3'];
+const PHASE_NAMES = ['Call Week','Recovery','OR Week 1','OR Week 2','OR Week 3','OR Week 4'];
+const DEFAULT_PHASES = [0,5,4,3,2,1];
+const MONTH_NAMES = ['January','February','March','April','May','June',
+                     'July','August','September','October','November','December'];
+const SCHEDULE_WEEKS = 156; // 3 years
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let cfg = loadCfg();
+let viewYear, viewMonth; // current displayed month
+let schedule = [];       // precomputed
+
+function loadCfg() {
+  try { const s = localStorage.getItem('anes-v7'); if (s) return JSON.parse(s); } catch(_) {}
+  return makeDefaultCfg();
+}
+function makeDefaultCfg() {
+  const d = new Date(); const dow = d.getDay();
+  // Snap to nearest upcoming Friday (dow=5)
+  const toFri = (5 - dow + 7) % 7;
+  const fri = new Date(d); fri.setDate(d.getDate() + toFri);
+  return { providers:['Dr. Smith','Dr. Jones','Dr. Williams','Dr. Brown','Dr. Davis','Dr. Miller'],
+           painIdx:0, startPhases:[...DEFAULT_PHASES],
+           startDate:fri.toISOString().slice(0,10), vacations:[] };
+}
+function save() { localStorage.setItem('anes-v7', JSON.stringify(cfg)); }
+
+// Returns sorted array of weekIdx values (Fri-Thu call weeks) overlapped by a date range [start,end] (inclusive)
+function weeksForRange(startStr, endStr) {
+  const s = new Date(startStr+'T12:00:00');
+  const e = new Date(endStr+'T12:00:00');
+  let startWk = getWeekIdx(s);
+  let endWk = getWeekIdx(e);
+  if (startWk > endWk) { const t=startWk; startWk=endWk; endWk=t; }
+  const weeks = [];
+  for (let w = Math.max(0,startWk); w <= endWk; w++) weeks.push(w);
+  return weeks;
+}
+
+// Local Y-M-D string (avoids UTC/toISOString day-shift issues) — matches the plain "YYYY-MM-DD"
+// strings produced by <input type="date">, so they can be compared lexicographically.
+function ymd(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+// The actual calendar date for a given weekday cell (weekIdx = Fri-Thu call week, dayIdx 0=Mon..4=Fri).
+// NOTE: Mon-Thu (dayIdx 0-3) sit INSIDE call week `weekIdx` (which started the previous Friday), so
+// their date = weekStart(weekIdx) + 3..6 days. But Friday (dayIdx 4) is the day the NEXT call week
+// BEGINS — getWeekIdx() maps a Friday to the week that starts ON it — so its date is simply
+// weekStart(weekIdx) + 0, not +7. Using a single "+3+dayIdx" formula for both cases double-counts
+// that week boundary and pushes Friday's computed date a full 7 days into the future.
+function dateForDay(weekIdx, dayIdx) {
+  const d = weekStart(weekIdx);
+  if (dayIdx === 4) return d; // Friday IS the Friday that starts this call week
+  d.setDate(d.getDate() + 3 + dayIdx);
+  return d;
+}
+
+// Returns the matching vacation entry if `date` falls within a provider's exact [start,end] range, else null.
+// This is the EXACT-DATE check used for day-by-day display — independent of which call week the date sits in.
+function vacationOnDate(provIdx, date) {
+  const dStr = ymd(date);
+  return (cfg.vacations||[]).find(v => v.provIdx===provIdx && dStr >= v.start && dStr <= v.end) || null;
+}
+
+// True if two inclusive date-string ranges [s1,e1] and [s2,e2] share any exact day
+function rangesOverlap(s1,e1,s2,e2) { return s1 <= e2 && s2 <= e1; }
+
+// ─── SCHEDULE COMPUTATION ────────────────────────────────────────────────────
+function computeSchedule() {
+  const phases = [...cfg.startPhases];
+  schedule = [];
+
+  // Expand date-range vacations into a per-week set of providers whose vacation overlaps that
+  // Fri-Thu call week. This is used ONLY to decide whether a call-week needs a substitute — call
+  // duty runs continuously (72hr weekend + nightly evening call) and can't be split mid-week, so
+  // any overlap with an on-call week triggers whole-week substitution.
+  //
+  // Non-call-week vacations are deliberately NOT blanket-applied here: providers keep their normal
+  // phase (OR/recovery/pain) for the week, and getDayAssign()/getORPool() overlay "Vacation" using
+  // EXACT requested dates (vacationOnDate) so the provider still appears on their regular rotation
+  // for any day of that week falling outside their actual vacation range.
+  const weekVacMap = {};
+  (cfg.vacations||[]).forEach(v => {
+    weeksForRange(v.start, v.end).forEach(w => {
+      if (!weekVacMap[w]) weekVacMap[w] = new Set();
+      weekVacMap[w].add(v.provIdx);
+    });
+  });
+
+  for (let w = 0; w < SCHEDULE_WEEKS; w++) {
+    const hols = weekVacMap[w] || new Set();
+    const ep = [...phases];
+    let callSub = -1;
+    const callProv = phases.indexOf(0);
+
+    if (callProv >= 0 && hols.has(callProv)) {
+      // find substitute: provider with phase 5 not on vacation
+      const sub = phases.findIndex((p,i)=>p===5 && !hols.has(i));
+      if (sub >= 0) { ep[sub] = 0; callSub = sub; }
+      ep[callProv] = -1; // call-week vacation (whole week covered by substitute — see note above)
+    }
+
+    schedule.push({ ep, hols, callSub, phases:[...phases] });
+
+    // advance phases
+    for (let p = 0; p < 6; p++) {
+      if (hols.has(p) && p === callProv) {
+        // call-week vacation: phase stays at 0 (takes call on return)
+      } else if (p === callSub) {
+        phases[p] = 1; // substitute: skip from 5 to recovery
+      } else {
+        phases[p] = (phases[p]+1)%6;
+      }
+    }
+  }
+
+  assignORRooms();
+}
+
+// ─── FAIR OR-ROOM (CALL 1-4) ASSIGNMENT ─────────────────────────────────────
+// Builds a "least-used" cumulative assignment for the OR rooms (Call 1-4, plus the
+// occasional "Available — no room" slot) and caches it on each schedule[w].orRoom[dayIdx]
+// array (indexed by provider). This replaces a fixed modular-rotation formula that — even
+// after correcting its date-math discontinuity — still produced a noticeably uneven
+// long-run spread (e.g. ~40-55% relative spread between the busiest and quietest provider
+// in a given room over a multi-year window), because the day-to-day pool composition keeps
+// shifting (weekly call rotation, Tuesday pain-clinic exclusion, vacations) in ways a fixed
+// formula can't adapt to.
+//
+// Instead, we walk every OR weekday in TRUE chronological order (the calendar order is
+// Friday of call-week w, then that week's Mon-Thu — see dateForDay) and, for each day,
+// hand out that day's room slots to whichever eligible providers currently have the lowest
+// cumulative count for that exact slot (ties broken by their lowest overall OR-day total,
+// then by provider index for determinism). This "deficit" greedy keeps every provider's
+// per-room totals converging toward each other continuously — both over the long run AND
+// within any shorter analysis window — which is what "fair and even" actually calls for.
+// It is still 100% deterministic: the same config always reproduces the same schedule.
+function lessAssignKey(a, b) {
+  for (let i = 0; i < a.length; i++) { if (a[i] !== b[i]) return a[i] < b[i]; }
+  return false;
+}
+function assignORRooms() {
+  const roomCount = Array.from({length:6}, ()=>[0,0,0,0,0]); // [provIdx][slot] · slot 0=Available, 1-4=Call 1-4
+  const totalCount = [0,0,0,0,0,0];
+
+  for (let w = 0; w < schedule.length; w++) schedule[w].orRoom = [null,null,null,null,null];
+
+  // Chronological order: each call-week's Friday comes FIRST (it's the day the week starts),
+  // then that same week's Monday-Thursday (see dateForDay's Friday special-case).
+  const order = [];
+  for (let w = 0; w < schedule.length; w++) {
+    order.push([w,4]);
+    for (let d = 0; d < 4; d++) order.push([w,d]);
+  }
+
+  order.forEach(([w,d]) => {
+    const pool = getORPool(w, d);
+    if (!pool.length) return;
+    const maxRooms = d===1 ? 3 : 4;
+    const slots = [];
+    for (let r = 1; r <= maxRooms; r++) slots.push(r);
+    for (let i = 0; i < Math.max(0, pool.length - maxRooms); i++) slots.push(0); // "Available"
+
+    const remP = [...pool], remS = [...slots];
+    const roomRow = new Array(6).fill(-1);
+    while (remP.length && remS.length) {
+      let best = null;
+      for (const p of remP) {
+        for (const s of remS) {
+          const key = [roomCount[p][s], totalCount[p], p, s];
+          if (!best || lessAssignKey(key, best.key)) best = {key, p, s};
+        }
+      }
+      roomRow[best.p] = best.s;
+      roomCount[best.p][best.s]++;
+      totalCount[best.p]++;
+      remP.splice(remP.indexOf(best.p), 1);
+      remS.splice(remS.indexOf(best.s), 1);
+    }
+    schedule[w].orRoom[d] = roomRow;
+  });
+}
+
+// ─── DATE UTILS ──────────────────────────────────────────────────────────────
+// Weeks run Fri–Thu. startDate must be a Friday.
+function startDate() { return new Date(cfg.startDate+'T00:00:00'); }
+
+// Returns the Friday that starts week wIdx
+function weekStart(wIdx) {
+  const d = startDate(); d.setDate(d.getDate()+wIdx*7); return d;
+}
+// Keep alias for any legacy call sites
+function weekMonday(wIdx) { return weekStart(wIdx); }
+
+function getWeekIdx(date) {
+  // Find the most recent Friday on or before `date`, then count 7-day blocks from startDate.
+  const d = new Date(date);
+  const dow = d.getDay(); // 0=Sun,1=Mon,...,5=Fri,6=Sat
+  // Days since the most recent Friday: Fri=0,Sat=1,Sun=2,Mon=3,Tue=4,Wed=5,Thu=6
+  const daysSinceFri = (dow + 2) % 7;
+  const recentFri = new Date(d);
+  recentFri.setDate(d.getDate() - daysSinceFri);
+  const diff = Math.floor((recentFri - startDate()) / 864e5);
+  return Math.floor(diff / 7);
+}
+function isSameDay(a,b) {
+  return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();
+}
+function lastName(name) {
+  const p = name.trim().split(/\s+/); return p[p.length-1];
+}
+function shortName(name) { return lastName(name).slice(0,5); }
+function fmtDate(d) {
+  return d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+}
+function fmtShort(d) {
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+}
+
+// ─── ASSIGNMENT LOGIC ────────────────────────────────────────────────────────
+function getORPool(weekIdx, dayIdx) {
+  if (!schedule[weekIdx]) return [];
+  const isTue = dayIdx===1;
+  const date = dateForDay(weekIdx, dayIdx);
+  return [0,1,2,3,4,5].filter(p=>{
+    const ep = schedule[weekIdx].ep[p];
+    if (ep < 0) return false; // call-week vacation (whole week covered by substitute)
+    if (ep < 2) return false; // call or recovery
+    if (ep === 2 && dayIdx === 4) return false; // extended rest day — OR1 doesn't begin until Monday
+    if (isTue && p===cfg.painIdx) return false; // pain clinic
+    if (vacationOnDate(p, date)) return false; // exact-date vacation today
+    return true;
+  });
+}
+
+// Returns this provider's OR room for the day: 1-4 for Call 1-4, 0 for "Available — no room",
+// -1 if the provider isn't in that day's OR pool at all (on call, recovery, pain clinic, vacation).
+// The actual assignment is computed once for the whole schedule by assignORRooms() (see above) —
+// a cumulative "least-used" allocation that keeps Call 1-4 spread fair and even over time — and
+// cached on schedule[w].orRoom[dayIdx][provIdx]. We just look it up here.
+function getORRoom(provIdx, weekIdx, dayIdx) {
+  if (!schedule[weekIdx] || !schedule[weekIdx].orRoom) return -1;
+  const row = schedule[weekIdx].orRoom[dayIdx];
+  if (!row) return -1;
+  return row[provIdx];
+}
+
+// Returns the pure ROTATION-COMPUTED assignment for a weekday (dayIdx 0=Mon..4=Fri), ignoring any
+// manual override. This is the "scheduled" baseline shown as the default in the override editor —
+// it never changes as a result of overrides, which is what keeps future weeks unaffected.
+function getScheduledDayAssign(provIdx, weekIdx, dayIdx) {
+  if (weekIdx < 0 || weekIdx >= schedule.length) return {type:'off',label:'—',detail:''};
+  const ep = schedule[weekIdx].ep[provIdx];
+  const isPain = provIdx === cfg.painIdx;
+  const isTue = dayIdx === 1;
+
+  if (ep === -1) return {type:'vacation-call',label:'VAC',detail:'Vacation (call covered by substitute)'};
+
+  // Exact-date overlay: only the SPECIFIC requested days show as Vacation. Days within the same
+  // Fri-Thu week that fall outside the provider's actual [start,end] range keep their normal duty.
+  const exactVac = vacationOnDate(provIdx, dateForDay(weekIdx, dayIdx));
+  if (exactVac) return {type:'vacation',label:'VAC',detail:'Vacation'};
+
+  if (ep === 0) { // call week (runs Fri 8AM → next Thu midnight)
+    if (isTue && isPain) return {type:'dual',label:'CALL+PMC',detail:'Dual: Pain Clinic 8AM–5PM + Evening Call 5PM–8AM'};
+    if (dayIdx === 4)    return {type:'call',label:'CALL',detail:'Weekend Call begins Fri 8AM → Mon 8AM (72 hr)'};
+    if (dayIdx === 0)    return {type:'call',label:'CALL',detail:'Post-weekend-call · Evening Call 5PM–8AM'};
+    return {type:'call',label:'CALL',detail:'Evening Call 5PM–8AM'};
+  }
+  if (ep === 1) { // recovery
+    if (isTue && isPain) return {type:'pain',label:'PMC',detail:'Pain Clinic 8AM–5PM (recovery week)'};
+    return {type:'recovery',label:'REST',detail:'Recovery — all duties off'};
+  }
+  // Extended rest: the Friday that opens OR Week 1 — chronologically the very first day right
+  // after Recovery's Fri-Thu block ends — is kept as one more day of rest. REST now runs through
+  // that Friday, and the OR rotation actually starts the following Monday. ("The rest day extends
+  // to Friday" — REST gets one extra day, pushing OR1's effective start from Friday to Monday.)
+  if (ep === 2 && dayIdx === 4) {
+    return {type:'recovery',label:'REST',detail:'Recovery — extended rest day (OR rotation begins Monday)'};
+  }
+  // OR weeks
+  if (isTue && isPain) return {type:'pain',label:'PMC',detail:'Pain Clinic 8AM–5PM'};
+  const room = getORRoom(provIdx, weekIdx, dayIdx);
+  if (room === -1) return {type:'off',label:'—',detail:''};
+  if (room === 0)  return {type:'available',label:'AVAIL',detail:'Available — no room assigned (extra provider)'};
+  return {type:'or',label:`Call ${room}`,detail:`Call ${room} · 8AM–5PM`};
+}
+
+// Pure ROTATION-COMPUTED assignment for a weekend day (Sat/Sun), ignoring manual overrides.
+function getScheduledWeekendAssign(provIdx, weekIdx, date) {
+  if (weekIdx < 0 || weekIdx >= schedule.length) return {type:'off',label:'—',detail:''};
+  const ep = schedule[weekIdx].ep[provIdx];
+  if (ep === -1) return {type:'vacation-call',label:'VAC',detail:'Vacation (call covered by substitute)'};
+  if (vacationOnDate(provIdx, date)) return {type:'vacation',label:'VAC',detail:'Vacation'};
+  if (ep === 0) return {type:'call',label:'CALL',detail:'Weekend Call · Fri 8AM → Mon 8AM (72 hr continuous)'};
+  if (ep === 1) return {type:'recovery',label:'REST',detail:'Recovery — all duties off'};
+  // Extended rest weekend: any Sat/Sun that falls in an OR-Week-1 block is, by construction, the
+  // weekend immediately after that block's "extended rest" Friday — i.e. still part of the
+  // lengthened recovery stretch that ends Sunday night, with OR rotation starting Monday.
+  if (ep === 2) return {type:'recovery',label:'REST',detail:'Recovery — extended rest weekend (OR rotation begins Monday)'};
+  return {type:'off',label:'—',detail:''};
+}
+
+// Dispatches to the right "scheduled" (no-override) computation for any date — used by the
+// override editor to show each provider's rotation-computed default.
+function getScheduledAssign(provIdx, date) {
+  const dow = date.getDay();
+  const weekIdx = getWeekIdx(date);
+  if (dow === 0 || dow === 6) return getScheduledWeekendAssign(provIdx, weekIdx, date);
+  return getScheduledDayAssign(provIdx, weekIdx, dow - 1);
+}
+
+// ─── MANUAL DAY OVERRIDES ────────────────────────────────────────────────────
+// cfg.overrides = { 'YYYY-MM-DD': { '<provIdx>': {type,label,detail}, ... } }
+// Overrides are a pure DISPLAY overlay for a single date — they never touch cfg.startPhases,
+// cfg.vacations, or computeSchedule()'s rotation math, so moving people around on one day can
+// never cascade into or "compromise" any other day's (or future week's) computed schedule.
+function getOverride(dateStr, provIdx) {
+  return (cfg.overrides && cfg.overrides[dateStr] && cfg.overrides[dateStr][provIdx]) || null;
+}
+function dateHasOverrides(dateStr) {
+  return !!(cfg.overrides && cfg.overrides[dateStr] && Object.keys(cfg.overrides[dateStr]).length);
+}
+
+const OVERRIDE_OPTIONS = [
+  {value:'sched',     label:'— Use Scheduled —'},
+  {value:'or1',       label:'Call 1 (OR Room 1)'},
+  {value:'or2',       label:'Call 2 (OR Room 2)'},
+  {value:'or3',       label:'Call 3 (OR Room 3)'},
+  {value:'or4',       label:'Call 4 (OR Room 4)'},
+  {value:'call',      label:'On Call'},
+  {value:'dual',      label:'On Call + Pain Clinic'},
+  {value:'pain',      label:'Pain Clinic'},
+  {value:'recovery',  label:'Recovery — Off'},
+  {value:'vacation',  label:'Vacation'},
+  {value:'available', label:'Available (no room)'},
+  {value:'off',       label:'Off'}
+];
+
+// Builds the stored {type,label,detail} for a chosen override option value
+function buildOverrideAssign(value) {
+  switch (value) {
+    case 'or1': return {type:'or',        label:'Call 1', detail:'Manually assigned · Call 1 · 8AM–5PM'};
+    case 'or2': return {type:'or',        label:'Call 2', detail:'Manually assigned · Call 2 · 8AM–5PM'};
+    case 'or3': return {type:'or',        label:'Call 3', detail:'Manually assigned · Call 3 · 8AM–5PM'};
+    case 'or4': return {type:'or',        label:'Call 4', detail:'Manually assigned · Call 4 · 8AM–5PM'};
+    case 'call':      return {type:'call',      label:'CALL',     detail:'Manually assigned · On Call'};
+    case 'dual':      return {type:'dual',      label:'CALL+PMC', detail:'Manually assigned · Dual: Pain Clinic + Evening Call'};
+    case 'pain':      return {type:'pain',      label:'PMC',      detail:'Manually assigned · Pain Clinic 8AM–5PM'};
+    case 'recovery':  return {type:'recovery',  label:'REST',     detail:'Manually assigned · Recovery — off'};
+    case 'vacation':  return {type:'vacation',  label:'VAC',      detail:'Manually assigned · Vacation'};
+    case 'available': return {type:'available', label:'AVAIL',    detail:'Manually assigned · Available — no room'};
+    case 'off':       return {type:'off',       label:'—',        detail:'Manually assigned · Off'};
+    default: return null;
+  }
+}
+// Reverse mapping: given an assignment object, which OVERRIDE_OPTIONS value represents it
+function assignToOptionValue(a) {
+  if (!a) return 'sched';
+  if (a.type === 'or') {
+    const m = (a.label||'').match(/\d+/);
+    return m ? ('or'+m[0]) : 'available';
+  }
+  if (a.type === 'vacation-call') return 'vacation';
+  return a.type;
+}
+
+// EFFECTIVE assignment = manual override (if any) takes precedence, else the scheduled/rotation value.
+// This is what every calendar cell, weekend badge, and detail row should render.
+function getDayAssign(provIdx, weekIdx, dayIdx) {
+  if (weekIdx < 0 || weekIdx >= schedule.length) return {type:'off',label:'—',detail:''};
+  const dateStr = ymd(dateForDay(weekIdx, dayIdx));
+  const ov = getOverride(dateStr, provIdx);
+  if (ov) return {...ov, overridden:true};
+  return getScheduledDayAssign(provIdx, weekIdx, dayIdx);
+}
+function getWeekendAssign(provIdx, weekIdx, date) {
+  if (weekIdx < 0 || weekIdx >= schedule.length) return {type:'off',label:'—',detail:''};
+  const ov = getOverride(ymd(date), provIdx);
+  if (ov) return {...ov, overridden:true};
+  return getScheduledWeekendAssign(provIdx, weekIdx, date);
+}
+
+// ─── SETUP SCREEN ────────────────────────────────────────────────────────────
+function renderSetup() {
+  document.getElementById('provider-rows').innerHTML = cfg.providers.map((name,i)=>`
+    <div class="provider-row">
+      <div class="p-swatch" style="background:${P_COLORS[i]}"></div>
+      <input type="text" id="pn-${i}" value="${esc(name)}" placeholder="Provider ${i+1}">
+      <select id="pp-${i}" class="phase-select">
+        ${PHASE_NAMES.map((lbl,p)=>`<option value="${p}"${cfg.startPhases[i]===p?' selected':''}>${lbl}</option>`).join('')}
+      </select>
+    </div>`).join('');
+
+  document.getElementById('pain-radio-group').innerHTML = cfg.providers.map((name,i)=>`
+    <label class="pain-btn${cfg.painIdx===i?' active':''}" onclick="setPain(${i})">
+      <div style="width:9px;height:9px;border-radius:2px;background:${P_COLORS[i]}"></div>
+      ${esc(name)}
+    </label>`).join('');
+
+  document.getElementById('start-date-input').value = cfg.startDate;
+}
+
+function setPain(idx) {
+  cfg.painIdx = idx;
+  document.querySelectorAll('.pain-btn').forEach((el,i)=>el.classList.toggle('active',i===idx));
+}
+
+function launch() {
+  cfg.providers = cfg.providers.map((_,i)=>{
+    const el = document.getElementById(`pn-${i}`);
+    return el ? el.value.trim()||`Provider ${i+1}` : _;
+  });
+  cfg.startPhases = cfg.providers.map((_,i)=>{
+    const el = document.getElementById(`pp-${i}`);
+    return el ? parseInt(el.value) : DEFAULT_PHASES[i];
+  });
+  const raw = document.getElementById('start-date-input').value;
+  if (raw) {
+    const d = new Date(raw+'T12:00:00');
+    const dow = d.getDay();
+    // Snap to nearest upcoming Friday (or same day if already Friday)
+    const toFri = (5 - dow + 7) % 7;
+    d.setDate(d.getDate() + toFri);
+    cfg.startDate = d.toISOString().slice(0,10);
+  }
+  save();
+  initApp();
+}
+
+function goSetup() {
+  document.getElementById('setup-screen').style.display='flex';
+  document.getElementById('app-screen').style.display='none';
+  renderSetup();
+}
+
+// ─── APP INIT ────────────────────────────────────────────────────────────────
+function initApp() {
+  computeSchedule();
+  const today = new Date();
+  viewYear  = today.getFullYear();
+  viewMonth = today.getMonth();
+  document.getElementById('setup-screen').style.display='none';
+  document.getElementById('app-screen').style.display='flex';
+  renderLegend();
+  renderCalendar();
+}
+
+// ─── LEGEND ──────────────────────────────────────────────────────────────────
+function renderLegend() {
+  const pHtml = cfg.providers.map((name,i)=>`
+    <div class="leg-item">
+      <div class="leg-dot" style="background:${P_COLORS[i]}"></div>
+      ${esc(name)}${i===cfg.painIdx?' <span style="font-size:.65rem;background:#805ad5;color:#fff;padding:1px 4px;border-radius:3px;margin-left:2px">PMC</span>':''}
+    </div>`).join('');
+
+  const typeHtml = `
+    <div class="leg-divider"></div>
+    <div class="leg-item"><div class="leg-dot" style="background:#fc8181"></div>Call</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#63b3ed"></div>Recovery</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#68d391"></div>OR Room</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#b794f4"></div>Pain Clinic</div>
+    <div class="leg-item"><div class="leg-dot" style="background:#f6ad55"></div>Dual Duty</div>
+    <div class="leg-item"><div class="leg-dot" style="background:repeating-linear-gradient(45deg,#aaa 0,#aaa 2px,#ddd 2px,#ddd 5px)"></div>Vacation</div>`;
+
+  document.getElementById('legend-bar').innerHTML = pHtml + typeHtml;
+}
+
+// ─── CALENDAR RENDER ─────────────────────────────────────────────────────────
+function renderCalendar() {
+  document.getElementById('month-title').textContent =
+    `${MONTH_NAMES[viewMonth]} ${viewYear}`;
+
+  const today = new Date();
+  // First day of month, last day
+  const firstDay = new Date(viewYear, viewMonth, 1);
+  const lastDay  = new Date(viewYear, viewMonth+1, 0);
+  // Start of grid: Sunday on or before firstDay
+  const gridStart = new Date(firstDay);
+  gridStart.setDate(gridStart.getDate() - firstDay.getDay());
+
+  // Build weeks (6 rows max)
+  let html = '';
+  let d = new Date(gridStart);
+  for (let row = 0; row < 6; row++) {
+    // Check if this entire row is outside the month (skip if past last day and past sunday start)
+    if (d > lastDay && d.getDay() === 0) break;
+    html += '<div class="cal-week">';
+    for (let col = 0; col < 7; col++) {
+      html += renderCell(new Date(d), today);
+      d.setDate(d.getDate()+1);
+    }
+    html += '</div>';
+  }
+  document.getElementById('cal-weeks').innerHTML = html;
+}
+
+function renderCell(date, today) {
+  const dow = date.getDay(); // 0=Sun..6=Sat
+  const isWeekend = dow===0||dow===6;
+  const inMonth = date.getMonth()===viewMonth && date.getFullYear()===viewYear;
+  const isToday = isSameDay(date, today);
+  const weekIdx = getWeekIdx(date);
+
+  let cls = 'cal-cell';
+  if (!inMonth) cls += ' other-month';
+  if (isToday) cls += ' today';
+  if (isWeekend) cls += ' weekend-cell';
+
+  const dateStr = ymd(date);
+  const ovMark = dateHasOverrides(dateStr) ? ' <span style="font-size:.6rem;color:#ed8936" title="This day has manual overrides">✏️</span>' : '';
+  let content = `<div class="cal-date">${date.getDate()}${ovMark}</div>`;
+
+  if (isWeekend) {
+    content += renderWeekendContent(weekIdx, date);
+  } else {
+    const dayIdx = dow - 1; // Mon=0..Fri=4
+    content += renderWeekdayContent(weekIdx, dayIdx);
+  }
+
+  return `<div class="${cls}" onclick="openDayDetail('${dateStr}')">${content}</div>`;
+}
+
+// Slot display order is STATIC (Call 1 → Call 2 → Call 3 → Call 4 → On Call → Pain → Recovery → Vacation → Available).
+// Provider names move between rows depending on who occupies each slot that day.
+const SLOT_ORDER = { call:0, dual:0, or:2, pain:3, recovery:4, 'vacation-call':5, vacation:6, available:7, off:9 };
+
+function renderWeekdayContent(weekIdx, dayIdx) {
+  if (weekIdx < 0 || weekIdx >= schedule.length) return '';
+
+  const items = [];
+  for (let p = 0; p < 6; p++) {
+    const a = getDayAssign(p, weekIdx, dayIdx);
+    if (a.type === 'off') continue; // skip blank rows
+    items.push({ p, a });
+  }
+
+  // Sort into the static slot order; within OR rooms, order by Call-number (1→4)
+  items.sort((x,y) => {
+    const ox = SLOT_ORDER[x.a.type] ?? 8;
+    const oy = SLOT_ORDER[y.a.type] ?? 8;
+    if (ox !== oy) return ox - oy;
+    if (x.a.type === 'or') {
+      const rx = parseInt((x.a.label.match(/\d+/)||[0])[0]);
+      const ry = parseInt((y.a.label.match(/\d+/)||[0])[0]);
+      return rx - ry;
+    }
+    return 0;
+  });
+
+  let html = '';
+  items.forEach(({p,a}) => {
+    const lbl = getLblHtml(a);
+    const ovMark = a.overridden ? '<span style="font-size:.55rem;margin-left:2px" title="Manually overridden">✏️</span>' : '';
+    html += `<div class="cal-row t-${a.type}">
+      <div class="pdot" style="background:${P_COLORS[p]}"></div>
+      <span class="pname">${shortName(cfg.providers[p])}</span>
+      ${lbl}${ovMark}
+    </div>`;
+  });
+  return html;
+}
+
+function renderWeekendContent(weekIdx, date) {
+  if (weekIdx < 0 || weekIdx >= schedule.length) return '';
+  // Show call provider prominently; for Sunday check if it's the same call provider as Friday
+  let html = '';
+  for (let p = 0; p < 6; p++) {
+    const a = getWeekendAssign(p, weekIdx, date);
+    const ovMark = a.overridden ? '<span style="font-size:.55rem;margin-left:2px" title="Manually overridden">✏️</span>' : '';
+    if (a.type === 'call' || a.type === 'dual') { // on call this weekend
+      html += `<div class="wknd-call" style="border-color:${P_COLORS[p]};background:${P_LIGHT[p]}">
+        <div class="pdot" style="background:${P_COLORS[p]};width:7px;height:7px;border-radius:2px;flex-shrink:0"></div>
+        <span style="font-size:.68rem;font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${shortName(cfg.providers[p])}</span>
+        <span style="font-size:.6rem;font-weight:800;background:#fc8181;color:#742a2a;padding:1px 4px;border-radius:3px">CALL</span>${ovMark}
+      </div>`;
+    } else if (a.type === 'vacation-call') { // call-week vacation (whole week covered by substitute)
+      html += `<div class="cal-row t-vacation-call">
+        <div class="pdot" style="background:${P_COLORS[p]}"></div>
+        <span class="pname">${shortName(cfg.providers[p])}</span>
+        <span class="albl" style="background:#fed7d7;color:#742a2a">VAC</span>${ovMark}
+      </div>`;
+    } else if (a.type === 'vacation') { // exact-date vacation (non-call week)
+      html += `<div class="cal-row t-vacation">
+        <div class="pdot" style="background:${P_COLORS[p]}"></div>
+        <span class="pname">${shortName(cfg.providers[p])}</span>
+        <span class="albl" style="background:#e2e8f0;color:#4a5568">VAC</span>${ovMark}
+      </div>`;
+    } else if (a.overridden && a.type !== 'off' && a.type !== 'recovery') {
+      // Any other manual override on a weekend (e.g. forced "Available"/"Call N") still deserves to be visible
+      html += `<div class="cal-row t-${a.type}">
+        <div class="pdot" style="background:${P_COLORS[p]}"></div>
+        <span class="pname">${shortName(cfg.providers[p])}</span>
+        ${getLblHtml(a)}${ovMark}
+      </div>`;
+    }
+  }
+  return html;
+}
+
+function getLblHtml(a) {
+  const colors = {
+    or:'#22543d,#c6f6d5',call:'#742a2a,#fed7d7',recovery:'#2a4365,#bee3f8',
+    pain:'#44337a,#e9d8fd',dual:'#7b341e,#feebc8','vacation-call':'#742a2a,#fed7d7',
+    vacation:'#4a5568,#e2e8f0',available:'#744210,#fefcbf',off:'#718096,#edf2f7'
+  };
+  const [c,bg] = (colors[a.type]||'#4a5568,#e2e8f0').split(',');
+  return `<span class="albl" style="background:${bg};color:${c}">${esc(a.label)}</span>`;
+}
+
+// ─── NAVIGATION ──────────────────────────────────────────────────────────────
+function shiftMonth(d) {
+  viewMonth += d;
+  if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+  if (viewMonth < 0)  { viewMonth = 11; viewYear--; }
+  renderCalendar();
+}
+function jumpToday() {
+  const t = new Date();
+  viewYear=t.getFullYear(); viewMonth=t.getMonth();
+  renderCalendar();
+}
+
+// ─── DAY DETAIL MODAL ────────────────────────────────────────────────────────
+function openDayDetail(dateStr) {
+  const date = new Date(dateStr+'T12:00:00');
+  const dow = date.getDay();
+  const weekIdx = getWeekIdx(date);
+
+  document.getElementById('day-modal-title').textContent = fmtDate(date);
+
+  let html = '';
+
+  // Override entry point — visible on every day, flagged if this date already has edits
+  html += `<div style="display:flex;justify-content:flex-end;margin:-4px 0 12px">
+    <button class="hbtn" style="font-size:.7rem;padding:5px 12px" onclick="openDayOverrideEditor('${dateStr}')">
+      ✏️ Override This Day${dateHasOverrides(dateStr) ? ' <span style="background:#ed8936;color:#fff;border-radius:3px;padding:1px 5px;margin-left:5px;font-size:.6rem;font-weight:800">EDITED</span>' : ''}
+    </button>
+  </div>`;
+
+  const ovTag = (a) => a.overridden ? ' <span style="font-size:.62rem;background:#ed8936;color:#fff;padding:1px 4px;border-radius:3px;margin-left:4px">MANUAL</span>' : '';
+
+  if (dow===0||dow===6) {
+    html += '<div class="modal-section-title">Weekend</div>';
+    if (weekIdx>=0&&weekIdx<schedule.length) {
+      for (let p=0; p<6; p++) {
+        const a = getWeekendAssign(p, weekIdx, date);
+        let label = assignLabel(a), sub = a.detail || '', bg = '#f7fafc';
+        if (a.type==='call'||a.type==='dual')      { label='On Weekend Call'; bg=P_LIGHT[p]; if(!a.overridden) sub='Fri 8AM → Mon 8AM (72 hr continuous)'; }
+        else if (a.type==='vacation-call')          { label='Vacation'; bg='#fff5f5'; if(!a.overridden) sub='Call covered by substitute'; }
+        else if (a.type==='vacation')                { label='Vacation'; bg='#fff5f5'; }
+        else if (a.type==='recovery')                { label='Recovery — Off'; if(!a.overridden) sub='All duties off'; }
+        else if (a.type==='off')                     { label='Off'; sub=a.overridden?sub:''; }
+        html += `<div class="detail-row" style="background:${bg};border-radius:6px;padding:8px 10px">
+          <div class="detail-swatch" style="background:${P_COLORS[p]}"></div>
+          <div>
+            <div class="detail-name">${esc(cfg.providers[p])}${p===cfg.painIdx?' <span style="font-size:.65rem;background:#805ad5;color:#fff;padding:1px 4px;border-radius:3px">PMC</span>':''}${ovTag(a)}</div>
+            <div class="detail-assign">${label}</div>
+            ${sub?`<div class="detail-sub">${sub}</div>`:''}
+          </div>
+        </div>`;
+      }
+    }
+  } else {
+    const dayIdx = dow-1;
+    const dayName = ['Monday','Tuesday','Wednesday','Thursday','Friday'][dayIdx];
+    if (dayIdx===1) {
+      html += '<div class="modal-section-title">Pain Management Clinic — Tue 8AM–5PM</div>';
+      const p = cfg.painIdx;
+      const a = weekIdx>=0&&weekIdx<schedule.length ? getDayAssign(p, weekIdx, dayIdx) : {type:'off',label:'—',detail:''};
+      const onClinic = a.type==='pain' || a.type==='dual';
+      const onVac = a.type==='vacation' || a.type==='vacation-call';
+      let sub = a.detail || '8AM–5PM';
+      if (onVac) sub = 'Provider on vacation — clinic uncovered this Tuesday ⚠';
+      html += `<div class="detail-row" style="background:${onVac?'#fff5f5':'#faf5ff'};border-radius:6px;padding:8px 10px">
+        <div class="detail-swatch" style="background:${P_COLORS[p]}"></div>
+        <div>
+          <div class="detail-name">${esc(cfg.providers[p])}${ovTag(a)}</div>
+          <div class="detail-assign">${onVac?'⚠ Vacation — Pain Clinic UNCOVERED':(onClinic?'Pain Clinic':assignLabel(a)+' — Pain Clinic NOT covered')}</div>
+          <div class="detail-sub">${sub}</div>
+        </div>
+      </div>`;
+    }
+
+    const isFri = dayIdx===4;
+    html += `<div class="modal-section-title">${dayName} OR Rooms · 8AM–5PM${isFri?' · Call Week Starts 8AM':''}${dayIdx===3?' · Last Evening Call 5PM–8AM':''}</div>`;
+    if (weekIdx>=0&&weekIdx<schedule.length) {
+      for (let p=0; p<6; p++) {
+        const a = getDayAssign(p, weekIdx, dayIdx);
+        html += `<div class="detail-row">
+          <div class="detail-swatch" style="background:${P_COLORS[p]}"></div>
+          <div>
+            <div class="detail-name">${esc(cfg.providers[p])}${p===cfg.painIdx?' <span style="font-size:.65rem;background:#805ad5;color:#fff;padding:1px 4px;border-radius:3px">PMC</span>':''}${ovTag(a)}</div>
+            <div class="detail-assign" style="color:${typeColor(a.type)}">${assignLabel(a)}</div>
+            ${a.detail?`<div class="detail-sub">${a.detail}</div>`:''}
+          </div>
+        </div>`;
+      }
+    }
+
+    if (weekIdx>=0&&weekIdx<schedule.length) {
+      // Effective on-call provider — reflects manual overrides, not just the rotation
+      let callProv = -1;
+      for (let p=0;p<6;p++){ const a=getDayAssign(p,weekIdx,dayIdx); if(a.type==='call'||a.type==='dual'){ callProv=p; break; } }
+      if (callProv>=0) {
+        const a = getDayAssign(callProv, weekIdx, dayIdx);
+        html += `<div class="modal-section-title">Evening Call Tonight · 5PM–8AM</div>`;
+        html += `<div class="detail-row" style="background:${P_LIGHT[callProv]};border-radius:6px;padding:8px 10px">
+          <div class="detail-swatch" style="background:${P_COLORS[callProv]}"></div>
+          <div>
+            <div class="detail-name">${esc(cfg.providers[callProv])}${ovTag(a)}</div>
+            <div class="detail-assign">On Call 5PM – 8AM</div>
+          </div>
+        </div>`;
+      }
+    }
+  }
+
+  document.getElementById('day-modal-body').innerHTML = html;
+  document.getElementById('day-modal').classList.add('open');
+}
+
+// ─── DAY OVERRIDE EDITOR ─────────────────────────────────────────────────────
+// Lets the user manually reassign what each provider is doing on ONE specific date.
+// This writes only to cfg.overrides[dateStr] — a pure display overlay keyed by exact date.
+// It never touches cfg.startPhases / cfg.vacations / computeSchedule(), so the rotation and
+// every other day's (and every future week's) computed schedule stay exactly as they were.
+function openDayOverrideEditor(dateStr) {
+  const date = new Date(dateStr+'T12:00:00');
+  const existing = (cfg.overrides && cfg.overrides[dateStr]) || {};
+
+  let rows = '';
+  for (let p = 0; p < 6; p++) {
+    const scheduled = getScheduledAssign(p, date);
+    const schedLabel = assignLabel(scheduled);
+    const selected = assignToOptionValue(existing[p] || null);
+    const opts = OVERRIDE_OPTIONS.map(o => {
+      const lbl = o.value === 'sched' ? `Use Scheduled (${esc(schedLabel)})` : o.label;
+      return `<option value="${o.value}"${o.value===selected?' selected':''}>${lbl}</option>`;
+    }).join('');
+    rows += `<div class="override-row" style="display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid #edf2f7">
+      <div class="detail-swatch" style="background:${P_COLORS[p]};width:10px;height:10px;border-radius:3px;flex-shrink:0"></div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:.85rem">${esc(cfg.providers[p])}${p===cfg.painIdx?' <span style="font-size:.6rem;background:#805ad5;color:#fff;padding:1px 4px;border-radius:3px">PMC</span>':''}</div>
+        <div style="font-size:.7rem;color:#a0aec0">Scheduled: ${esc(schedLabel)}</div>
+      </div>
+      <select id="ov-sel-${p}" style="font-size:.8rem;padding:6px 8px;border:1px solid #cbd5e0;border-radius:6px;min-width:200px">${opts}</select>
+    </div>`;
+  }
+
+  document.getElementById('day-modal-title').textContent = `Override · ${fmtDate(date)}`;
+  document.getElementById('day-modal-body').innerHTML = `
+    <p class="hint" style="margin-top:0">Manually set what each provider is doing on <b>this exact date only</b>. This is a display-only override — it does not change the rotation, vacations, or any other day's schedule (past or future).</p>
+    <div class="override-list">${rows}</div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+      <button class="btn-remove" onclick="clearDayOverrides('${dateStr}')">Reset to Scheduled</button>
+      <button style="padding:8px 16px;background:#edf2f7;color:#4a5568;border:1px solid #e2e8f0;border-radius:8px;font-size:.85rem;cursor:pointer" onclick="openDayDetail('${dateStr}')">Cancel</button>
+      <button class="btn-primary" style="margin-top:0" onclick="saveDayOverrides('${dateStr}')">Save</button>
+    </div>`;
+  document.getElementById('day-modal').classList.add('open');
+}
+
+function saveDayOverrides(dateStr) {
+  const map = {};
+  for (let p = 0; p < 6; p++) {
+    const sel = document.getElementById('ov-sel-'+p);
+    if (!sel) continue;
+    const val = sel.value;
+    if (val === 'sched') continue;
+    const a = buildOverrideAssign(val);
+    if (a) map[p] = a;
+  }
+  if (!cfg.overrides) cfg.overrides = {};
+  if (Object.keys(map).length) cfg.overrides[dateStr] = map;
+  else delete cfg.overrides[dateStr];
+  save();
+  renderCalendar();
+  openDayDetail(dateStr);
+}
+
+function clearDayOverrides(dateStr) {
+  if (cfg.overrides) delete cfg.overrides[dateStr];
+  save();
+  renderCalendar();
+  openDayDetail(dateStr);
+}
+
+function assignLabel(a) {
+  if (a.type==='or') return a.label;
+  if (a.type==='call') return 'On Call (Evening Call)';
+  if (a.type==='dual') return 'Dual: Pain Clinic + Call';
+  if (a.type==='pain') return 'Pain Clinic';
+  if (a.type==='recovery') return 'Recovery — Off';
+  if (a.type==='vacation'||a.type==='vacation-call') return 'Vacation';
+  if (a.type==='available') return 'Available (no room assigned)';
+  return 'Off';
+}
+function typeColor(t) {
+  const m={or:'#22543d',call:'#742a2a',dual:'#7b341e',pain:'#44337a',recovery:'#2a4365','vacation-call':'#742a2a',vacation:'#718096',available:'#744210'};
+  return m[t]||'#4a5568';
+}
+
+// ─── VACATION MANAGER ────────────────────────────────────────────────────────
+function openVacationModal() {
+  renderVacationModal();
+  document.getElementById('vacation-modal').classList.add('open');
+}
+
+function getFridayOf(date) {
+  // Returns the Friday of the call week containing `date`
+  const d = new Date(date);
+  const dow = d.getDay();
+  const daysSinceFri = (dow + 2) % 7; // Fri=0,Sat=1,Sun=2,Mon=3,Tue=4,Wed=5,Thu=6
+  d.setDate(d.getDate() - daysSinceFri);
+  return d;
+}
+
+function renderVacationModal() {
+  const vacations = cfg.vacations||[];
+
+  // existing vacations
+  let listHtml = '';
+  if (vacations.length===0) {
+    listHtml = '<p style="font-size:.83rem;color:#718096;margin-bottom:16px">No vacations scheduled.</p>';
+  } else {
+    const sorted = vacations.map((v,idx)=>({...v,idx})).sort((a,b)=> a.start.localeCompare(b.start));
+    listHtml = '<div class="vacation-list">';
+    for (const v of sorted) {
+      const weeks = weeksForRange(v.start, v.end);
+      const touchesCallWeek = weeks.some(w => schedule[w] && schedule[w].phases[v.provIdx]===0);
+      const sd = new Date(v.start+'T12:00:00');
+      const ed = new Date(v.end+'T12:00:00');
+      const dayCount = Math.round((ed - sd) / 864e5) + 1;
+      listHtml += `<div class="vacation-item">
+        <div class="vdot" style="background:${P_COLORS[v.provIdx]}"></div>
+        <div class="vinfo">
+          <b>${esc(cfg.providers[v.provIdx])}</b>
+          &nbsp;·&nbsp; ${fmtShort(sd)} – ${fmtShort(ed)}
+          <span style="color:#a0aec0">(${dayCount} exact day${dayCount>1?'s':''}${touchesCallWeek?', plus full on-call week substitution':''})</span>
+        </div>
+        <span class="vtype ${touchesCallWeek?'vtype-call':'vtype-norm'}">${touchesCallWeek?'INCL. CALL WK':'EXACT DATES'}</span>
+        <button class="btn-remove" onclick="removeVacation(${v.idx})">Remove</button>
+      </div>`;
+    }
+    listHtml += '</div>';
+  }
+
+  // add form
+  const provOptions = cfg.providers.map((n,i)=>`<option value="${i}">${esc(n)}</option>`).join('');
+  const todayStr = new Date().toISOString().slice(0,10);
+  const formHtml = `
+    <div class="modal-section-title">Add Vacation</div>
+    <div class="add-vacation-form">
+      <div class="form-row">
+        <div class="form-field">
+          <label>Provider</label>
+          <select id="v-prov">${provOptions}</select>
+        </div>
+        <div class="form-field">
+          <label>From</label>
+          <input type="date" id="v-start" value="${todayStr}">
+        </div>
+        <div class="form-field">
+          <label>To</label>
+          <input type="date" id="v-end" value="${todayStr}">
+        </div>
+        <button class="btn-primary" style="height:36px;padding:0 16px;align-self:flex-end" onclick="addVacation()">Add</button>
+      </div>
+      <p class="hint" style="margin-top:0">Vacation uses the <b>exact dates</b> you select — only those specific days are marked Vacation; the provider keeps their normal OR/recovery/pain assignments on every other day. The one exception: if the range touches the provider's on-call week, the entire Fri–Thu call week is covered by a substitute, since on-call duty runs continuously and can't be split mid-week.</p>
+      <div id="v-preview"></div>
+    </div>`;
+
+  document.getElementById('vacation-modal-body').innerHTML = listHtml + formHtml;
+
+  document.getElementById('v-start').addEventListener('input', previewVacation);
+  document.getElementById('v-end').addEventListener('input', previewVacation);
+  document.getElementById('v-prov').addEventListener('change', previewVacation);
+  previewVacation();
+}
+
+function previewVacation() {
+  const pIdx = parseInt(document.getElementById('v-prov').value);
+  const startVal = document.getElementById('v-start').value;
+  const endVal = document.getElementById('v-end').value;
+  const out = document.getElementById('v-preview');
+  if (!startVal || !endVal) return;
+  if (endVal < startVal) {
+    out.innerHTML = '<div class="err-box">"To" date must be on or after "From" date.</div>';
+    return;
+  }
+  const weeks = weeksForRange(startVal, endVal);
+  if (weeks.length===0 || weeks[0] < 0) {
+    out.innerHTML = '<div class="err-box">Date range is before schedule start.</div>';
+    return;
+  }
+
+  // Hard block: exact-date overlap with another provider's vacation — two providers can't be
+  // away on the exact same calendar day(s). (Overlapping the same Fri-Thu week on DIFFERENT
+  // exact days is fine — that's the whole point of exact-date vacations.)
+  const existing = cfg.vacations||[];
+  const dateConflict = existing.find(v => v.provIdx!==pIdx && rangesOverlap(startVal, endVal, v.start, v.end));
+  if (dateConflict) {
+    const cs = new Date(dateConflict.start+'T12:00:00'), ce = new Date(dateConflict.end+'T12:00:00');
+    out.innerHTML = `<div class="err-box">⛔ ${esc(cfg.providers[dateConflict.provIdx])} is already on vacation on overlapping date(s) (${fmtShort(cs)} – ${fmtShort(ce)}). Two providers cannot be on vacation the exact same day.</div>`;
+    return;
+  }
+
+  const sd = new Date(startVal+'T12:00:00'), ed = new Date(endVal+'T12:00:00');
+  const dayCount = Math.round((ed - sd) / 864e5) + 1;
+  const callWeeks = weeks.filter(w => schedule[w] && schedule[w].phases[pIdx]===0);
+  let html = `<div class="ok-box"><b>${esc(cfg.providers[pIdx])}</b> · ${fmtShort(sd)} – ${fmtShort(ed)} &nbsp;(${dayCount} exact day${dayCount>1?'s':''}${callWeeks.length?`, touches ${callWeeks.length} on-call week${callWeeks.length>1?'s':''}`:''})<br>`;
+
+  let warnedReturn = false;
+  weeks.forEach((w,i) => {
+    const ws = schedule[w];
+    if (!ws) return;
+    const fri = weekStart(w), thu = new Date(fri); thu.setDate(fri.getDate()+6);
+    const origPhase = ws.phases[pIdx];
+    const isCallWk = origPhase===0;
+    html += `<div style="margin-top:6px;padding-top:6px;border-top:1px solid #c6f6d5">`;
+    html += `<b>Wk of ${fmtShort(fri)}–${fmtShort(thu)}:</b> `;
+    if (isCallWk) {
+      const sub = ws.phases.findIndex((p,idx)=>p===5 && !existing.concat([{provIdx:pIdx,start:startVal,end:endVal}]).some(v=>v.provIdx===idx && weeksForRange(v.start,v.end).includes(w)));
+      html += `⚠ <b>Call week.</b> `;
+      if (sub>=0) html += `${esc(cfg.providers[sub])} substitutes for call. ${esc(cfg.providers[pIdx])} resumes call immediately on return (next Friday).`;
+      else html += `No available substitute found — review rotation.`;
+      // return week conflict check
+      const returnWk = w+1;
+      if (!weeks.includes(returnWk)) {
+        const returnConflict = existing.find(v=>weeksForRange(v.start,v.end).includes(returnWk));
+        if (returnConflict && !warnedReturn) {
+          html += `<br>⚠ <b>Return-week conflict:</b> ${esc(cfg.providers[returnConflict.provIdx])} already has vacation the week the provider returns to call. Review before applying.`;
+          warnedReturn = true;
+        }
+      }
+    } else {
+      html += `${PHASE_NAMES[origPhase]||''} week — only the <b>exact selected date(s)</b> falling in this week show as Vacation (OR room/duty goes uncovered those days only, no redistribution); any other day this week the provider keeps their normal assignment.`;
+      if (pIdx===cfg.painIdx) html += ` <br>⚠ If a Tuesday in this range is one of the exact vacation dates, <b>Pain Clinic is uncovered</b> that day.`;
+    }
+    html += `</div>`;
+  });
+  html += '</div>';
+  out.innerHTML = html;
+}
+
+function addVacation() {
+  const pIdx = parseInt(document.getElementById('v-prov').value);
+  const startVal = document.getElementById('v-start').value;
+  const endVal = document.getElementById('v-end').value;
+  if (!startVal || !endVal) return;
+  if (endVal < startVal) { alert('"To" date must be on or after "From" date.'); return; }
+
+  const weeks = weeksForRange(startVal, endVal);
+  if (weeks.length===0 || weeks[0] < 0) { alert('Date range is before schedule start.'); return; }
+
+  // Hard block: exact-date overlap with another provider's vacation (two providers can't be away the same day)
+  const existing = cfg.vacations||[];
+  const dateConflict = existing.find(v => v.provIdx!==pIdx && rangesOverlap(startVal, endVal, v.start, v.end));
+  if (dateConflict) {
+    alert(`${cfg.providers[dateConflict.provIdx]} is already on vacation on an overlapping date. Two providers cannot be on vacation the exact same day.`);
+    return;
+  }
+
+  if (!cfg.vacations) cfg.vacations = [];
+  cfg.vacations.push({ provIdx:pIdx, start:startVal, end:endVal });
+  save();
+  computeSchedule();
+  renderCalendar();
+  renderVacationModal();
+}
+
+function removeVacation(idx) {
+  cfg.vacations = (cfg.vacations||[]).filter((_,i)=>i!==idx);
+  save();
+  computeSchedule();
+  renderCalendar();
+  renderVacationModal();
+}
+
+// ─── ROOM BALANCE ANALYSIS ───────────────────────────────────────────────────
+// Tally how many times each provider lands in OR Room 1-4 over a span of weeks.
+function computeRoomStats(numWeeks) {
+  const counts = Array.from({length:6}, ()=>[0,0,0,0]); // [provIdx][room-1]
+  const totals = [0,0,0,0,0,0];
+  const span = Math.min(numWeeks, schedule.length);
+  for (let w = 0; w < span; w++) {
+    for (let d = 0; d < 5; d++) { // Mon..Fri
+      for (let p = 0; p < 6; p++) {
+        const room = getORRoom(p, w, d);
+        if (room >= 1 && room <= 4) {
+          counts[p][room-1]++;
+          totals[p]++;
+        }
+      }
+    }
+  }
+  return { counts, totals, weeks: span };
+}
+
+const ROOM_BAR_COLORS = ['#68d391','#63b3ed','#f6ad55','#b794f4'];
+
+function openRoomModal() {
+  renderRoomModal();
+  document.getElementById('room-modal').classList.add('open');
+}
+
+function renderRoomModal() {
+  const sel = document.getElementById('room-scope-select');
+  const numWeeks = sel ? parseInt(sel.value) : 26;
+  const { counts, totals, weeks } = computeRoomStats(numWeeks);
+  const grandMax = Math.max(1, ...counts.flat());
+
+  let html = `
+    <div class="room-scope">
+      <label style="font-size:.8rem;color:#4a5568;font-weight:600">Analysis window:</label>
+      <select id="room-scope-select" onchange="renderRoomModal()">
+        <option value="13"${numWeeks===13?' selected':''}>13 weeks (~3 months)</option>
+        <option value="26"${numWeeks===26?' selected':''}>26 weeks (~6 months)</option>
+        <option value="52"${numWeeks===52?' selected':''}>52 weeks (1 year)</option>
+        <option value="${SCHEDULE_WEEKS}"${numWeeks===SCHEDULE_WEEKS?' selected':''}>Full schedule (${SCHEDULE_WEEKS} wks)</option>
+      </select>
+      <span style="font-size:.76rem;color:#a0aec0">Counts weekday OR-room placements only (call/recovery/pain/vacation weeks excluded)</span>
+    </div>
+    <div class="rb-row head">
+      <div>Provider</div><div>Call 1</div><div>Call 2</div><div>Call 3</div><div>Call 4</div><div style="text-align:right">Total</div>
+    </div>`;
+
+  cfg.providers.forEach((name,p) => {
+    html += `<div class="rb-row">
+      <div class="rb-prov"><div class="leg-dot" style="background:${P_COLORS[p]}"></div>${esc(shortName(name))}</div>`;
+    for (let r = 0; r < 4; r++) {
+      const c = counts[p][r];
+      const pct = grandMax ? Math.round((c/grandMax)*100) : 0;
+      html += `<div class="rb-cell">
+        <div class="rb-num"><span>${c}</span></div>
+        <div class="rb-bar-track"><div class="rb-bar-fill" style="width:${pct}%;background:${ROOM_BAR_COLORS[r]}"></div></div>
+      </div>`;
+    }
+    html += `<div class="rb-total">${totals[p]}</div></div>`;
+  });
+
+  // Spread / balance summary
+  const grandTotal = totals.reduce((a,b)=>a+b,0);
+  const avgPerProv = grandTotal / 6;
+  const maxTotal = Math.max(...totals), minTotal = Math.min(...totals);
+  const spreadNote = (maxTotal - minTotal) <= 2
+    ? `Room-day totals are well balanced across providers (spread of ${maxTotal-minTotal} between highest and lowest).`
+    : `Spread of ${maxTotal-minTotal} OR-days between the busiest and least-busy provider over this window — balance evens out as the rotation continues.`;
+
+  // Per-room balance: how evenly is each room (1-4) distributed across the 6 providers
+  let roomBalanceHtml = '';
+  for (let r = 0; r < 4; r++) {
+    const col = counts.map(c=>c[r]);
+    const max = Math.max(...col), min = Math.min(...col);
+    roomBalanceHtml += `<div>Call ${r+1}: spread ${max-min} (range ${min}–${max} assignments per provider)</div>`;
+  }
+
+  html += `<div class="rb-summary">
+    <b>Window:</b> ${weeks} call week${weeks!==1?'s':''} (Fri–Thu blocks) from schedule start · <b>Total OR-room days analyzed:</b> ${grandTotal} · <b>Avg per provider:</b> ${avgPerProv.toFixed(1)}<br>
+    ${spreadNote}<br>
+    ${roomBalanceHtml}
+  </div>`;
+
+  document.getElementById('room-modal-body').innerHTML = html;
+}
+
+// ─── MODALS ──────────────────────────────────────────────────────────────────
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+// ─── UTILS ───────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+renderSetup();
+if (localStorage.getItem('anes-v6')) initApp();
+</script>
+</body>
+</html>
