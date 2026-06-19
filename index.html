@@ -44,6 +44,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .hbtn:hover{background:rgba(255,255,255,.26)}
 .hbtn.danger{background:rgba(239,68,68,.2);border-color:rgba(239,68,68,.4)}
 .hbtn.danger:hover{background:rgba(239,68,68,.35)}
+body.read-only .edit-only{display:none}
 
 /* ── CALENDAR NAV ── */
 .cal-nav{background:#fff;border-bottom:1px solid #e2e8f0;padding:12px 24px;display:flex;align-items:center;gap:14px;flex-shrink:0;flex-wrap:wrap}
@@ -75,7 +76,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .cal-date{font-size:.8rem;font-weight:600;color:#4a5568;margin-bottom:4px;line-height:1;width:22px;height:22px;display:flex;align-items:center;justify-content:center}
 .cal-row{display:flex;align-items:center;gap:3px;margin-bottom:2px;padding:1px 2px;border-radius:4px;font-size:.68rem;line-height:1.2}
 .cal-row .pdot{width:7px;height:7px;border-radius:2px;flex-shrink:0}
-.cal-row .pname{font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:46px}
+.cal-row .pname{font-weight:600;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cal-row .albl{font-size:.62rem;font-weight:700;white-space:nowrap;padding:0 3px;border-radius:3px}
 
 /* assignment type row backgrounds */
@@ -192,10 +193,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div class="app-header">
     <h1>🏥 Anesthesia Scheduler</h1>
     <div class="hbtns">
-      <button class="hbtn" onclick="openVacationModal()">🏖 Vacations &amp; Sick Leave</button>
+      <button class="hbtn edit-only" onclick="openVacationModal()">🏖 Vacations &amp; Sick Leave</button>
       <button class="hbtn" onclick="openRoomModal()">📊 Room Balance</button>
-      <button class="hbtn" onclick="goSetup()">⚙ Edit Providers</button>
+      <button class="hbtn edit-only" onclick="goSetup()">⚙ Edit Providers</button>
       <button class="hbtn" onclick="window.print()">🖨 Print</button>
+      <button class="hbtn" onclick="exportCSV()">⬇ Export CSV</button>
+      <button class="hbtn edit-only" onclick="getShareableLink()">🔗 Share</button>
+      <span id="readonly-badge" style="display:none;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:7px;font-size:.75rem;padding:6px 12px;font-weight:600">👁 View Only</span>
     </div>
   </div>
 
@@ -271,6 +275,7 @@ const SCHEDULE_WEEKS = 156; // 3 years
 
 // ─── STATE ───────────────────────────────────────────────────────────────────
 let cfg = loadCfg();
+let isReadOnly = false;
 let viewYear, viewMonth; // current displayed month
 let schedule = [];       // precomputed
 
@@ -516,7 +521,7 @@ function isSameDay(a,b) {
 function lastName(name) {
   const p = name.trim().split(/\s+/); return p[p.length-1];
 }
-function shortName(name) { return lastName(name).slice(0,5); }
+function shortName(name) { return lastName(name); }
 function fmtDate(d) {
   return d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
 }
@@ -573,7 +578,7 @@ function getScheduledDayAssign(provIdx, weekIdx, dayIdx) {
 
   if (ep === 0) { // call week (runs Fri 8AM → next Thu midnight)
     if (isTue && isPain) return {type:'dual',label:'CALL+PMC',detail:'Dual: Pain Clinic 8AM–5PM + Evening Call 5PM–8AM'};
-    if (dayIdx === 4)    return {type:'call',label:'CALL',detail:'Weekend Call begins Fri 8AM → Mon 8AM (72 hr)'};
+    if (dayIdx === 4)    return {type:'call',label:'3 Call',detail:'Weekend Call begins Fri 8AM → Mon 8AM (72 hr)'};
     if (dayIdx === 0)    return {type:'call',label:'CALL',detail:'Post-weekend-call · Evening Call 5PM–8AM'};
     return {type:'call',label:'CALL',detail:'Evening Call 5PM–8AM'};
   }
@@ -696,6 +701,58 @@ function getWeekendAssign(provIdx, weekIdx, date) {
   const ov = getOverride(ymd(date), provIdx);
   if (ov) return {...ov, overridden:true};
   return getScheduledWeekendAssign(provIdx, weekIdx, date);
+}
+
+// ─── SHARE LINK ──────────────────────────────────────────────────────────────
+function getShareableLink() {
+  try {
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(cfg))));
+    const base = location.origin + location.pathname;
+    const url = base + '?data=' + encoded;
+    navigator.clipboard.writeText(url).then(() => {
+      alert('Link copied to clipboard!\n\nSend this to your providers. They can view the schedule but cannot make any changes.');
+    }).catch(() => { prompt('Copy this link and send to your providers:', url); });
+  } catch(e) { alert('Could not generate link: ' + e.message); }
+}
+
+// ─── CSV EXPORT ──────────────────────────────────────────────────────────────
+function exportCSV() {
+  const DAYS = ['Friday','Saturday','Sunday','Monday','Tuesday','Wednesday','Thursday'];
+  const headers = ['Date','Day of Week', ...cfg.providers.map(n => lastName(n))];
+  const rows = [headers];
+  for (let w = 0; w < schedule.length; w++) {
+    const fri = weekStart(w);
+    // Fri, Sat, Sun, Mon, Tue, Wed, Thu
+    const days = [
+      { date: new Date(fri), dayIdx: 4 },
+      { date: new Date(fri.getTime() + 864e5),   dayIdx: -1 }, // Sat
+      { date: new Date(fri.getTime() + 2*864e5), dayIdx: -2 }, // Sun
+      { date: new Date(fri.getTime() + 3*864e5), dayIdx: 0 },
+      { date: new Date(fri.getTime() + 4*864e5), dayIdx: 1 },
+      { date: new Date(fri.getTime() + 5*864e5), dayIdx: 2 },
+      { date: new Date(fri.getTime() + 6*864e5), dayIdx: 3 },
+    ];
+    days.forEach(({date, dayIdx}, i) => {
+      const dateStr = date.toLocaleDateString('en-US',{year:'numeric',month:'2-digit',day:'2-digit'});
+      const cells = [dateStr, DAYS[i]];
+      cfg.providers.forEach((_,p) => {
+        let a;
+        if (dayIdx === -1 || dayIdx === -2) {
+          a = getWeekendAssign(p, w, date);
+        } else {
+          a = getDayAssign(p, w, dayIdx);
+        }
+        cells.push(a.label || '');
+      });
+      rows.push(cells);
+    });
+  }
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'anesthesia-schedule.csv'; a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ─── SETUP SCREEN ────────────────────────────────────────────────────────────
@@ -955,8 +1012,8 @@ function openDayDetail(dateStr) {
 
   let html = '';
 
-  // Override entry point — visible on every day, flagged if this date already has edits
-  html += `<div style="display:flex;justify-content:flex-end;margin:-4px 0 12px">
+  // Override entry point — hidden in read-only/shared view
+  if (!isReadOnly) html += `<div style="display:flex;justify-content:flex-end;margin:-4px 0 12px">
     <button class="hbtn" style="font-size:.7rem;padding:5px 12px" onclick="openDayOverrideEditor('${dateStr}')">
       ✏️ Override This Day${dateHasOverrides(dateStr) ? ' <span style="background:#ed8936;color:#fff;border-radius:3px;padding:1px 5px;margin-left:5px;font-size:.6rem;font-weight:800">EDITED</span>' : ''}
     </button>
@@ -1430,8 +1487,19 @@ function esc(s) {
 }
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
+(function() {
+  const d = new URLSearchParams(location.search).get('data');
+  if (d) {
+    try {
+      cfg = JSON.parse(decodeURIComponent(escape(atob(d))));
+      isReadOnly = true;
+      document.body.classList.add('read-only');
+      document.getElementById('readonly-badge').style.display = '';
+    } catch(e) { console.warn('Invalid share link', e); }
+  }
+})();
 renderSetup();
-if (localStorage.getItem('anes-v6')) initApp();
+if (isReadOnly || localStorage.getItem('anes-v6')) initApp();
 </script>
 </body>
 </html>
