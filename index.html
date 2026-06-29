@@ -1292,14 +1292,12 @@ function previewVacation() {
     return;
   }
 
-  // Hard block: exact-date overlap with another provider's absence — two providers can't be
-  // away on the exact same calendar day(s).
   const existing = allAbsences();
-  const dateConflict = existing.find(v => v.provIdx!==pIdx && rangesOverlap(startVal, endVal, v.start, v.end));
-  if (dateConflict) {
-    const cs = new Date(dateConflict.start+'T12:00:00'), ce = new Date(dateConflict.end+'T12:00:00');
-    const conflictLabel = dateConflict.type==='sick' ? 'on sick leave' : 'on vacation';
-    out.innerHTML = `<div class="err-box">⛔ ${esc(cfg.providers[dateConflict.provIdx])} is already ${conflictLabel} on overlapping date(s) (${fmtShort(cs)} – ${fmtShort(ce)}). Two providers cannot be absent the exact same day.</div>`;
+  // Block same-provider duplicate
+  const selfConflict = existing.find(v => v.provIdx===pIdx && rangesOverlap(startVal, endVal, v.start, v.end));
+  if (selfConflict) {
+    const cs = new Date(selfConflict.start+'T12:00:00'), ce = new Date(selfConflict.end+'T12:00:00');
+    out.innerHTML = `<div class="err-box">⛔ ${esc(cfg.providers[pIdx])} already has an absence on overlapping date(s) (${fmtShort(cs)} – ${fmtShort(ce)}). Remove it first.</div>`;
     return;
   }
 
@@ -1353,10 +1351,9 @@ function addVacation() {
   if (weeks.length===0 || weeks[0] < 0) { alert('Date range is before schedule start.'); return; }
 
   const existing = allAbsences();
-  const dateConflict = existing.find(v => v.provIdx!==pIdx && rangesOverlap(startVal, endVal, v.start, v.end));
-  if (dateConflict) {
-    const lbl = dateConflict.type==='sick' ? 'on sick leave' : 'on vacation';
-    alert(`${cfg.providers[dateConflict.provIdx]} is already ${lbl} on an overlapping date. Two providers cannot be absent the exact same day.`);
+  const selfConflict = existing.find(v => v.provIdx===pIdx && rangesOverlap(startVal, endVal, v.start, v.end));
+  if (selfConflict) {
+    alert(`${cfg.providers[pIdx]} already has an absence on overlapping dates. Remove it first.`);
     return;
   }
 
